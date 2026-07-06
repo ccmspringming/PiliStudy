@@ -314,6 +314,7 @@ class MainController extends GetxController
           () {
             if (currentNav == NavigationBarType.home) {
               homeController.onRefresh();
+            }
           },
         );
       } else {
