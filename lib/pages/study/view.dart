@@ -31,6 +31,7 @@ class _StudyPageState extends State<StudyPage>
   final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
   int _subjectIndex = 0;
+  int _allThemeIndex = 0;
   int _requestId = 0;
   int _currentPage = 1;
   bool _loading = false;
@@ -67,6 +68,19 @@ class _StudyPageState extends State<StudyPage>
     _StudySubject('阅读', '阅读 绘本'),
     _StudySubject('科普', '科普 纪录片'),
     _StudySubject('思维', '思维训练 奥数'),
+  ];
+
+  // B站搜索对相同 keyword + order + page 返回高度稳定。
+  // “全部”页刷新必须换搜索主题；加载更多则保持当前主题继续翻页。
+  static const List<_StudyTheme> _allThemes = [
+    _StudyTheme('综合学习', '学习 知识 小学 科普 课程'),
+    _StudyTheme('科学实验', '少儿 科学实验 科普 自然 探索'),
+    _StudyTheme('语文阅读', '小学 语文 阅读 古诗 绘本'),
+    _StudyTheme('数学思维', '小学 数学 思维训练 奥数 趣味数学'),
+    _StudyTheme('英语启蒙', '少儿 英语 启蒙 自然拼读 英语儿歌'),
+    _StudyTheme('历史地理', '少儿 历史故事 地理探索 人文知识'),
+    _StudyTheme('纪录片', '儿童 纪录片 自然 宇宙 动物'),
+    _StudyTheme('手工美育', '少儿 手工 美术 创意 课堂'),
   ];
 
   static const List<String> _blockedWords = [
@@ -148,18 +162,40 @@ class _StudyPageState extends State<StudyPage>
 
   bool get _isAllSubject => _subjectIndex == 0;
 
-  String get _cacheKey => '${_gradeController.index}:$_subjectIndex';
+  String get _cacheKey => _isAllSubject
+      ? '${_gradeController.index}:$_subjectIndex:$_allThemeIndex'
+      : '${_gradeController.index}:$_subjectIndex';
+
+  _StudyTheme get _currentAllTheme =>
+      _allThemes[_allThemeIndex % _allThemes.length];
 
   String get _keyword {
     final grade = _grades[_gradeController.index].keyword;
     final subject = _subjects[_subjectIndex].keyword;
     if (_isAllSubject) {
+      final theme = _currentAllTheme.keyword;
       if (grade == '启蒙教育') {
-        return '少儿 学习 科普 科学探索 自然 纪录片 绘本 正能量';
+        return '启蒙教育 $theme';
       }
-      return '$grade 学习 科普 科学探索 自然 历史 地理 纪录片 正能量';
+      return '$grade $theme';
     }
     return '$grade $subject 小学 课程 同步教材';
+  }
+
+  Future<void> _refresh() async {
+    if (_loading || _loadingMore) return;
+    if (_isAllSubject) {
+      setState(() {
+        _allThemeIndex = (_allThemeIndex + 1) % _allThemes.length;
+        _items = const [];
+        _currentPage = 1;
+        _hasMore = true;
+        _emptyPageCount = 0;
+        _autoFillCount = 0;
+        _error = null;
+      });
+    }
+    await _load(force: true);
   }
 
   void _scheduleLoad() {
@@ -343,8 +379,8 @@ class _StudyPageState extends State<StudyPage>
         title: const Text('PiliStudy 学习'),
         actions: [
           IconButton(
-            tooltip: '刷新学习内容',
-            onPressed: () => _load(force: true),
+            tooltip: _isAllSubject ? '换一批学习内容' : '刷新学习内容',
+            onPressed: _refresh,
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
@@ -365,12 +401,7 @@ class _StudyPageState extends State<StudyPage>
         child: Column(
           children: [
             _subjectBar(theme),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _load(force: true),
-                child: _body(theme),
-              ),
-            ),
+            Expanded(child: _body(theme)),
           ],
         ),
       ),
@@ -417,9 +448,9 @@ class _StudyPageState extends State<StudyPage>
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: () => _load(force: true),
+            onPressed: _refresh,
             icon: const Icon(Icons.refresh),
-            label: const Text('重新加载'),
+            label: Text(_isAllSubject ? '换一批内容' : '重新加载'),
           ),
         ],
       );
@@ -428,10 +459,15 @@ class _StudyPageState extends State<StudyPage>
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
-        children: const [
-          Icon(Icons.school_outlined, size: 48),
-          SizedBox(height: 12),
-          Text('暂时没有找到合适课程，下拉或点击右上角刷新。', textAlign: TextAlign.center),
+        children: [
+          const Icon(Icons.school_outlined, size: 48),
+          const SizedBox(height: 12),
+          Text(
+            _isAllSubject
+                ? '当前主题「${_currentAllTheme.label}」暂时没有找到合适课程，下拉换一个主题。'
+                : '暂时没有找到合适课程，下拉或点击右上角刷新。',
+            textAlign: TextAlign.center,
+          ),
         ],
       );
     }
@@ -447,11 +483,14 @@ class _StudyPageState extends State<StudyPage>
           context,
         ).scale(1.0).clamp(1.0, 1.35).toDouble();
         final cardHeight = _cardMainAxisExtent(cardWidth, textScale);
-        return CustomScrollView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverPadding(
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _studyTopicHeader(theme)),
+              SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 _gridPadding,
                 _gridPadding,
@@ -471,8 +510,9 @@ class _StudyPageState extends State<StudyPage>
                 ),
               ),
             ),
-            SliverToBoxAdapter(child: _loadMoreFooter(theme)),
-          ],
+              SliverToBoxAdapter(child: _loadMoreFooter(theme)),
+            ],
+          ),
         );
       },
     );
@@ -493,6 +533,30 @@ class _StudyPageState extends State<StudyPage>
     return coverHeight + contentHeight;
   }
 
+  Widget _studyTopicHeader(ThemeData theme) {
+    if (!_isAllSubject) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '当前主题：${_currentAllTheme.label}｜下拉换一批',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _loadMoreFooter(ThemeData theme) {
     if (_loadingMore) {
       return const Padding(
@@ -505,13 +569,22 @@ class _StudyPageState extends State<StudyPage>
         padding: const EdgeInsets.symmetric(vertical: 18),
         child: Center(
           child: Text(
-            '已经到底了',
+            '已经到底了，下拉刷新可换一批内容',
             style: TextStyle(color: theme.colorScheme.outline),
           ),
         ),
       );
     }
-    return const SizedBox(height: 24);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      child: Center(
+        child: OutlinedButton.icon(
+          onPressed: _loadMore,
+          icon: const Icon(Icons.expand_more),
+          label: const Text('加载更多'),
+        ),
+      ),
+    );
   }
 }
 
@@ -675,4 +748,10 @@ class _StudySubject {
   final String label;
   final String keyword;
   const _StudySubject(this.label, this.keyword);
+}
+
+class _StudyTheme {
+  final String label;
+  final String keyword;
+  const _StudyTheme(this.label, this.keyword);
 }
