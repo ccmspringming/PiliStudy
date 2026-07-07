@@ -154,7 +154,16 @@ abstract final class SettingBoxKey {
       floatingNavBar = 'floatingNavBar',
       removeSafeArea = 'removeSafeArea',
       angleDegrees = 'angleDegrees',
-      liveStream = 'liveStream';
+      liveStream = 'liveStream',
+      studyParentPinHash = 'studyParentPinHash',
+      studyParentPinSalt = 'studyParentPinSalt',
+      studyContentSourceMode = 'studyContentSourceMode',
+      studyCustomKeywords = 'studyCustomKeywords',
+      studyWhitelistWords = 'studyWhitelistWords',
+      studyExtraBlockWords = 'studyExtraBlockWords',
+      studyHideComments = 'studyHideComments',
+      studyDisableDanmaku = 'studyDisableDanmaku',
+      studyLargeScreenMode = 'studyLargeScreenMode';
 
   static const String minimizeOnExit = 'minimizeOnExit',
       windowSize = 'windowSize',

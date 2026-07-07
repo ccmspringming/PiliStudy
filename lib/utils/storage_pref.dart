@@ -400,10 +400,18 @@ abstract final class Pref {
   static bool get showRelatedVideo =>
       _setting.get(SettingBoxKey.showRelatedVideo, defaultValue: true);
 
+  static bool get studyHideComments =>
+      _setting.get(SettingBoxKey.studyHideComments, defaultValue: true);
+
+  static bool get studyDisableDanmaku =>
+      _setting.get(SettingBoxKey.studyDisableDanmaku, defaultValue: true);
+
   static bool get showVideoReply =>
+      !studyHideComments &&
       _setting.get(SettingBoxKey.showVideoReply, defaultValue: true);
 
   static bool get showBangumiReply =>
+      !studyHideComments &&
       _setting.get(SettingBoxKey.showBangumiReply, defaultValue: true);
 
   static bool get alwaysExpandIntroPanel =>
@@ -721,6 +729,7 @@ abstract final class Pref {
   );
 
   static bool get enableShowDanmaku =>
+      !studyDisableDanmaku &&
       _setting.get(SettingBoxKey.enableShowDanmaku, defaultValue: true);
 
   static bool get enableShowLiveDanmaku =>
@@ -984,6 +993,7 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.enablePlayAll, defaultValue: true);
 
   static bool get enableTapDm =>
+      !studyDisableDanmaku &&
       _setting.get(SettingBoxKey.enableTapDm, defaultValue: true);
 
   static bool get showTrayIcon =>

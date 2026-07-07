@@ -9,6 +9,8 @@ import 'package:PiliPlus/http/search.dart';
 import 'package:PiliPlus/models/common/search/search_type.dart';
 import 'package:PiliPlus/models/search/result.dart';
 import 'package:PiliPlus/models_new/video/video_detail/dimension.dart';
+import 'package:PiliPlus/pages/study/parent_settings.dart';
+import 'package:PiliPlus/pages/study/study_safety.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/duration_utils.dart';
@@ -163,11 +165,29 @@ class _StudyPageState extends State<StudyPage>
   bool get _isAllSubject => _subjectIndex == 0;
 
   String get _cacheKey => _isAllSubject
-      ? '${_gradeController.index}:$_subjectIndex:$_allThemeIndex'
-      : '${_gradeController.index}:$_subjectIndex';
+      ? '${_gradeController.index}:$_subjectIndex:$_allThemeIndex:${StudySafetyPrefs.settingsSignature}'
+      : '${_gradeController.index}:$_subjectIndex:${StudySafetyPrefs.settingsSignature}';
 
-  _StudyTheme get _currentAllTheme =>
-      _allThemes[_allThemeIndex % _allThemes.length];
+  List<_StudyTheme> get _customThemes => StudySafetyPrefs.customKeywords
+      .map((keyword) => _StudyTheme(keyword, keyword))
+      .toList(growable: false);
+
+  List<_StudyTheme> get _activeAllThemes {
+    final custom = _customThemes;
+    return switch (StudySafetyPrefs.sourceMode) {
+      StudyContentSourceMode.builtin => _allThemes,
+      StudyContentSourceMode.custom => custom,
+      StudyContentSourceMode.mixed => [..._allThemes, ...custom],
+    };
+  }
+
+  bool get _hasActiveAllSource => _activeAllThemes.isNotEmpty;
+
+  _StudyTheme get _currentAllTheme {
+    final active = _activeAllThemes;
+    if (active.isEmpty) return const _StudyTheme('未配置内容源', '');
+    return active[_allThemeIndex % active.length];
+  }
 
   String get _keyword {
     final grade = _grades[_gradeController.index].keyword;
@@ -185,8 +205,11 @@ class _StudyPageState extends State<StudyPage>
   Future<void> _refresh() async {
     if (_loading || _loadingMore) return;
     if (_isAllSubject) {
+      final sourceCount = _activeAllThemes.length;
       setState(() {
-        _allThemeIndex = (_allThemeIndex + 1) % _allThemes.length;
+        if (sourceCount > 0) {
+          _allThemeIndex = (_allThemeIndex + 1) % sourceCount;
+        }
         _items = const [];
         _currentPage = 1;
         _hasMore = true;
@@ -233,6 +256,19 @@ class _StudyPageState extends State<StudyPage>
 
   Future<void> _load({bool force = false}) async {
     _debounce?.cancel();
+    if (_isAllSubject && !_hasActiveAllSource) {
+      setState(() {
+        _items = const [];
+        _currentPage = 1;
+        _hasMore = false;
+        _emptyPageCount = 0;
+        _autoFillCount = 0;
+        _error = null;
+        _loading = false;
+        _loadingMore = false;
+      });
+      return;
+    }
     if (_useCachedResult(force: force)) return;
     await _fetchPage(page: 1, replace: true);
   }
@@ -354,13 +390,43 @@ class _StudyPageState extends State<StudyPage>
 
   List<SearchVideoItemModel> _filter(List<SearchVideoItemModel> source) {
     final grade = _grades[_gradeController.index].keyword;
+    final blockWords = [..._blockedWords, ...StudySafetyPrefs.extraBlockWords];
     return source.where((item) {
-      final text = '${item.title} ${item.desc ?? ''} ${item.owner.name ?? ''}';
-      if (_blockedWords.any(text.contains)) return false;
+      final text = '${item.title} ${item.desc ?? ''} ${item.owner.name ?? ''} ${item.tag ?? ''}';
+      if (StudySafetyPrefs.containsAny(text, blockWords)) return false;
+      if (!StudySafetyPrefs.passesWhitelist(text)) return false;
       if (_isAllSubject) return true;
       if (grade != '启蒙教育' && !text.contains(grade)) return false;
       return true;
-    }).toList();
+    }).toList(growable: false);
+  }
+
+  String get _emptyMessage {
+    if (_isAllSubject && !_hasActiveAllSource) {
+      return '当前未配置自定义内容源。请进入家长设置添加关键词，或切换为内置主题。';
+    }
+    if (StudySafetyPrefs.whitelistWords.isNotEmpty) {
+      return '当前白名单较严格，暂时没有匹配课程。请进入家长设置调整白名单或关键词。';
+    }
+    return _isAllSubject
+        ? '当前主题「${_currentAllTheme.label}」暂时没有找到合适课程，下拉换一个主题。'
+        : '暂时没有找到合适课程，下拉或点击右上角刷新。';
+  }
+
+  Future<void> _openParentSettings() async {
+    final changed = await StudyParentSettingsPage.open(context);
+    if (!mounted || !changed) return;
+    setState(() {
+      _cache.clear();
+      _allThemeIndex = 0;
+      _items = const [];
+      _currentPage = 1;
+      _hasMore = true;
+      _emptyPageCount = 0;
+      _autoFillCount = 0;
+      _error = null;
+    });
+    await _load(force: true);
   }
 
   void _selectSubject(int index) {
@@ -382,6 +448,11 @@ class _StudyPageState extends State<StudyPage>
             tooltip: _isAllSubject ? '换一批学习内容' : '刷新学习内容',
             onPressed: _refresh,
             icon: const Icon(Icons.refresh),
+          ),
+          IconButton(
+            tooltip: '家长设置',
+            onPressed: _openParentSettings,
+            icon: const Icon(Icons.admin_panel_settings_outlined),
           ),
           IconButton(
             tooltip: '家长登录 / 我的',
@@ -463,9 +534,7 @@ class _StudyPageState extends State<StudyPage>
           const Icon(Icons.school_outlined, size: 48),
           const SizedBox(height: 12),
           Text(
-            _isAllSubject
-                ? '当前主题「${_currentAllTheme.label}」暂时没有找到合适课程，下拉换一个主题。'
-                : '暂时没有找到合适课程，下拉或点击右上角刷新。',
+            _emptyMessage,
             textAlign: TextAlign.center,
           ),
         ],
@@ -543,7 +612,9 @@ class _StudyPageState extends State<StudyPage>
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              '当前主题：${_currentAllTheme.label}｜下拉换一批',
+              _hasActiveAllSource
+                  ? '当前主题：${_currentAllTheme.label}｜${StudySafetyPrefs.sourceMode.label}｜下拉换一批'
+                  : '当前未配置自定义内容源｜请进入家长设置',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -683,8 +754,10 @@ class _StudyVideoCard extends StatelessWidget {
                             child: Row(
                               children: [
                                 StatWidget(type: .play, value: item.stat.view),
-                                const SizedBox(width: 8),
-                                StatWidget(type: .danmaku, value: item.stat.danmu),
+                                if (!StudySafetyPrefs.disableDanmaku) ...[
+                                  const SizedBox(width: 8),
+                                  StatWidget(type: .danmaku, value: item.stat.danmu),
+                                ],
                                 const SizedBox(width: 8),
                                 Text(
                                   DateFormatUtils.dateFormat(item.pubdate ?? 0),
