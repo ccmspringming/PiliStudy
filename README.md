@@ -1,253 +1,180 @@
 <div align="center">
-    <img width="200" height="200" src="assets/images/logo/logo.png">
+  <img width="160" height="160" src="assets/images/logo/logo.png" alt="PiliStudy logo">
+
+  <h1>PiliStudy 学生学习版</h1>
+
+  <p>基于 PiliPlus fork 改造的学生/儿童向 B 站学习客户端。</p>
+
+  <p>
+    <a href="https://github.com/ccmspringming/PiliStudy/actions/workflows/pilistudy-android.yml">
+      <img src="https://github.com/ccmspringming/PiliStudy/actions/workflows/pilistudy-android.yml/badge.svg" alt="Android APK Build">
+    </a>
+    <img src="https://img.shields.io/github/repo-size/ccmspringming/PiliStudy" alt="repo size">
+    <img src="https://img.shields.io/github/license/ccmspringming/PiliStudy" alt="license">
+  </p>
 </div>
 
+## 项目定位
 
+PiliStudy 不是从零开发的新客户端，而是在 [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) 基础上做的学习版改造。
 
-<div align="center">
-    <h1>PiliPlus</h1>
-<div align="center">
-    
-![GitHub repo size](https://img.shields.io/github/repo-size/bggRGjQaUbCoE/PiliPlus) 
-![GitHub Repo stars](https://img.shields.io/github/stars/bggRGjQaUbCoE/PiliPlus) 
-![GitHub all releases](https://img.shields.io/github/downloads/bggRGjQaUbCoE/PiliPlus/total) 
-</div>
-    <p>使用Flutter开发的BiliBili第三方客户端</p>
-    
-<img src="assets/screenshots/510shots_so.png" width="32%" alt="home" />
-<img src="assets/screenshots/174shots_so.png" width="32%" alt="home" />
-<img src="assets/screenshots/850shots_so.png" width="32%" alt="home" />
-<br/>
-<img src="assets/screenshots/main_screen.png" width="96%" alt="home" />
-<br/>
-</div>
+目标很简单：把 B 站客户端从“泛娱乐入口”改造成“儿童/学生学习入口”。
 
+当前版本优先解决三个问题：
 
-<br/>
+- 让孩子打开 App 后先看到学习内容，而不是娱乐推荐流。
+- 按年级和学科组织内容，降低搜索和筛选成本。
+- 保留 B 站账号登录、播放、收藏、历史等基础能力，避免推倒重来。
 
-## 适配平台
+## 核心功能
 
-- [x] Android
-- [x] iOS
-- [x] Pad
-- [x] Windows
-- [x] Linux
+### 学习首页
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/piliplus.svg)](https://repology.org/project/piliplus/versions)
+- 默认进入 `PiliStudy 学习` 页面。
+- 年级标签：启蒙教育、一年级、二年级、三年级、四年级、五年级、六年级。
+- 学科筛选：全部、语文、数学、英语、阅读、科普、思维。
+- 视频卡片展示封面、标题、时长、播放量、日期和 UP 主。
 
-## refactor
+### “全部”标签主题轮换
 
-- [ ] gRPC [wip]
-- [x] 用户界面
-- [x] 其他
+“全部”标签不再反复请求同一个搜索词。
 
-## feat
+下拉刷新会在多个学习主题之间轮换，例如：
 
-- [x] 编辑动态
-- [x] DLNA 投屏
-- [x] 离线缓存/播放
-- [x] 移动端支持点击弹幕悬停，点赞、复制、举报 by [@My-Responsitories](https://github.com/My-Responsitories)
-- [x] 播放音频
-- [x] 跳过番剧片头/片尾
-- [x] 安卓端 `loudnorm` 适配 by [@My-Responsitories](https://github.com/My-Responsitories)
-- [x] Win/Mac 支持极验、短信登录 by [@My-Responsitories](https://github.com/My-Responsitories)
-- [x] 视频截取动图 by [@My-Responsitories](https://github.com/My-Responsitories)
-- [x] AI 原声翻译
-- [x] SuperChat
-- [x] 播放课堂视频
-- [x] 发起投票
-- [x] 发布动态/评论支持`富文本编辑`/`表情显示`/`@用户`
-- [x] 修改消息设置
-- [x] 修改聊天设置
-- [x] 展示折叠消息
-- [x] 查看用户图文
-- [x] 动态话题
-- [x] 直播分区
-- [x] 分享`视频`/`番剧`/`动态`/`专栏`/`直播`至消息
-- [x] 创建/修改/删除关注分组
-- [x] 移除粉丝
-- [x] 直播弹幕发送表情
-- [x] 收藏夹排序
-- [x] 稍后再看 ~~`未看`~~ / `未看完` / ~~`已看完`~~ 分类
-- [x] WebDAV 备份/恢复设置
-- [x] 保存评论/动态
-- [x] 高级弹幕 by [@My-Responsitories](https://github.com/My-Responsitories)
-- [x] 取消/置顶评论
-- [x] 记笔记
-- [x] 多账号支持 by [@My-Responsitories](https://github.com/My-Responsitories)
-- [x] 屏蔽带货动态/评论
-- [x] 互动视频
-- [x] 发评/动态反诈
-- [x] 高能进度条
-- [x] 滑动跳转预览视频缩略图
-- [x] Live Photo
-- [x] 复制/移动/排序收藏夹/稍后再看视频
-- [x] 超分辨率
-- [x] 合并弹幕
-- [x] 会员彩色弹幕
-- [x] 播放全部/继续播放/倒序播放
-- [x] Cookie登录
-- [x] 显示视频分段信息
-- [x] 调节字幕大小
-- [x] 调节全屏弹幕大小
-- [x] 收藏夹/稍后再看多选删除
-- [x] 搜索用户动态
-- [x] 直播弹幕
-- [x] 修改头像/用户名/签名/性别/生日
-- [x] 创建/编辑/删除收藏夹
-- [x] 评论楼中楼查看对话
-- [x] 评论楼中楼定位点击查看的评论
-- [x] 评论楼中楼按热度/时间排序
-- [x] 评论点踩
-- [x] 私信发图
-- [x] 投币动画
-- [x] 取消/追番，更新追番状态
-- [x] 取消/订阅合集
-- [x] SponsorBlock
-- [x] 显示视频完整合集
-- [x] 三连动画
-- [x] 番剧三连
-- [x] 带图评论
-- [x] 视频TAG
-- [x] 筛选搜索
-- [x] 转发动态
-- [x] 合集图片
-- [x] 删除/置顶/撤回私信
-- [x] 举报用户/评论/视频/动态
-- [x] 删除/发布/置顶文本/图片动态
-- [x] 其他
+- 综合学习
+- 科学实验
+- 语文阅读
+- 数学思维
+- 英语启蒙
+- 历史地理
+- 纪录片
+- 手工美育
 
-## opt
+这样可以避免“刷新了但还是同一批视频”的问题。
 
-- [x] 专栏界面
-- [x] 私信界面
-- [x] 收藏面板
-- [x] PIP
-- [x] 视频封面
-- [x] 回复界面
-- [x] 系统通知
-- [x] 评论显示
-- [x] 亮度调节
-- [x] 视频播放
-- [x] 视频staff
-- [x] 防止bottomsheet遮挡全屏视频
-- [x] 其他
+### 内容过滤
 
-## fix
+学习首页对搜索结果做基础黑名单过滤，尽量屏蔽明显不适合学习场景的内容，例如：
 
-- [x] 番剧分集点赞/投币/收藏
-- [x] bugs
+- 游戏
+- 直播
+- 鬼畜
+- 恐怖
+- 恋爱八卦
+- 带货
+- 擦边内容
 
-<br/>
+注意：关键词过滤只是第一道防线，不等于严格的儿童安全白名单。长期给孩子使用，后续仍建议增加家长密码、白名单课程库和更强的内容审核机制。
 
-## 功能
+### 登录保留
 
-- [x] 推荐视频列表(app端)
-- [x] 最热视频列表
-- [x] 热门直播
-- [x] 番剧列表
-- [x] 屏蔽黑名单内用户视频
-- [x] 无痕模式（播放视为未登录）
-- [x] 游客模式（推荐视为未登录）
+- 保留 B 站账号登录能力。
+- 登录入口移动到“我的 / 家长登录”。
+- 继续复用 PiliPlus 的播放、登录、收藏、历史等基础能力。
 
-- [x] 用户相关
-  - [x] 粉丝、关注用户、拉黑用户查看
-  - [x] 用户主页查看
-  - [x] 关注/取关用户
-  - [x] 离线缓存
-  - [x] 稍后再看
-  - [x] 观看记录
-  - [x] 我的收藏
-  - [x] 站内私信
-  
-- [x] 动态相关
-  - [x] 全部、投稿、番剧分类查看
-  - [x] 动态评论查看
-  - [x] 动态评论回复功能
+### 导航收敛
 
-- [x] 视频播放相关
-  - [x] 双击快进/快退
-  - [x] 双击播放/暂停
-  - [x] 垂直方向调节亮度/音量
-  - [x] 垂直方向上滑全屏、下滑退出全屏
-  - [x] 水平方向手势快进/快退
-  - [x] 全屏方向设置
-  - [x] 倍速选择/长按2倍速
-  - [x] 硬件加速（视机型而定）
-  - [x] 画质选择（高清画质未解锁）
-  - [x] 音质选择（视视频而定）
-  - [x] 解码格式选择（视视频而定）
-  - [x] 弹幕
-  - [x] 字幕
-  - [x] 记忆播放
-  - [x] 视频比例：高度/宽度适应、填充、包含等
-     
-- [x] 搜索相关
-  - [x] 热搜
-  - [x] 搜索历史
-  - [x] 默认搜索词
-  - [x] 投稿、番剧、直播间、用户搜索
-  - [x] 视频搜索排序、按时长筛选
-    
-- [x] 视频详情页相关
-  - [x] 视频选集(分p)切换
-  - [x] 点赞、投币、收藏/取消收藏
-  - [x] 相关视频查看
-  - [x] 评论用户身份标识
-  - [x] 评论(排序)查看、二楼评论查看
-  - [x] 主楼、二楼评论回复功能
-  - [x] 评论点赞
-  - [x] 评论笔记图片查看、保存
+当前主导航收敛为：
 
-- [x] 设置相关
-  - [x] 画质、音质、解码方式预设      
-  - [x] 图片质量设定
-  - [x] 主题模式：亮色/暗色/跟随系统
-  - [x] 震动反馈(可选)
-  - [x] 高帧率
-  - [x] 自动全屏
-  - [x] 横屏适配
-- [ ] 等等
+- 学习
+- 我的
 
-<br/>
+动态、泛娱乐首页等入口被隐藏，减少孩子从学习内容跑偏的概率。
 
-## 下载
+## 当前进度
 
-可以通过右侧release进行下载或拉取代码到本地进行编译
+当前主线版本：v0.6
 
-<br/>
+关键改动：
 
-## 声明
+- v0.1：完成 PiliStudy MVP，新增学习首页，保留登录入口，完成 Android APK CI 构建。
+- v0.2：改进学习页内容缓存、刷新体验和安全区域适配。
+- v0.3：增加横屏支持、滚动分页和内容自动补足。
+- v0.4：重构网格布局，增强折叠屏和横屏适配。
+- v0.5：重写“全部”标签刷新机制，改为多主题轮换，底部增加显式“加载更多”。
+- v0.6：收紧视频卡片布局，减少底部空白；加宽侧边导航，修复折叠屏横置 overflow。
 
-此项目（PiliPlus）是个人为了兴趣而开发，仅用于学习和测试，请于下载后24小时内删除。
-所用API皆从官方网站收集，不提供任何破解内容。
-在此致敬原作者：[guozhigq/pilipala](https://github.com/guozhigq/pilipala)
-在此致敬上游作者：[orz12/PiliPalaX](https://github.com/orz12/PiliPalaX)
-本仓库做了更激进的修改，感谢原作者的开源精神。
+## APK 下载
 
-感谢使用
+目前 APK 通过 GitHub Actions 自动构建。
 
+下载方式：
 
-<br/>
+1. 打开 [Actions 页面](https://github.com/ccmspringming/PiliStudy/actions/workflows/pilistudy-android.yml)。
+2. 选择最新一次成功的 `PiliStudy Android APK` workflow。
+3. 在页面底部 `Artifacts` 下载 `PiliStudy-debug-apk`。
+4. 解压后安装其中的 `app-debug.apk`。
+
+说明：当前主要产物是 debug APK，适合测试和验证。后续如果要长期使用，建议增加正式签名 release APK。
+
+## 本地构建
+
+如果要本地构建 Android APK：
+
+```bash
+flutter --version
+flutter pub get
+flutter build apk --release --split-per-abi --android-project-arg dev=1 --pub
+```
+
+构建产物通常位于：
+
+```text
+build/app/outputs/flutter-apk/
+```
+
+本项目也提供 GitHub Actions workflow：
+
+```text
+.github/workflows/pilistudy-android.yml
+```
+
+用于自动构建 Android debug APK。
+
+## 技术改造摘要
+
+主要改动集中在：
+
+- `lib/pages/study/view.dart`：新增学习首页、年级/学科筛选、主题轮换刷新、学习内容过滤。
+- `lib/pages/main/view.dart`：导航收敛为学习/我的，并适配折叠屏侧边导航。
+- `lib/models/common/nav_bar_config.dart`：调整主导航配置。
+- `lib/common/constants.dart`：应用名称改为 `PiliStudy`。
+- Android 包名改为 `com.example.pilistudy`，避免与原 PiliPlus 冲突。
+
+## 后续计划
+
+优先级从高到低：
+
+- 增加家长密码或家长模式。
+- 增加课程白名单和更可控的内容源。
+- 进一步隐藏或弱化评论、相关推荐、弹幕发送等非学习入口。
+- 增加正式 release APK 构建和签名。
+- 增加截图、使用说明和安装教程。
+
+## 注意事项
+
+- 本项目仍依赖 B 站公开接口和上游 PiliPlus 能力。
+- 学习内容来自搜索结果，不保证每条内容都完全适合儿童。
+- 请家长结合实际情况使用，不建议完全无人监管。
+- 当前包名为 `com.example.pilistudy`，可以和原 PiliPlus 并存安装。
+
+## 协议与声明
+
+本项目继承上游项目协议，继续遵守 GPL-3.0。
+
+本项目仅用于学习、研究和测试。所用 API 来自公开网络资料和官方客户端行为分析，不提供破解内容，不绕过付费或权限限制。
+
+请遵守 B 站相关服务条款和当地法律法规。
 
 ## 致谢
 
+感谢以下开源项目和资料：
+
+- [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus)
+- [PiliPalaX](https://github.com/orz12/PiliPalaX)
+- [pilipala](https://github.com/guozhigq/pilipala)
 - [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)
-- [flutter_meedu_videoplayer](https://github.com/zezo357/flutter_meedu_videoplayer)
 - [media-kit](https://github.com/media-kit/media-kit)
-- [dio](https://pub.dev/packages/dio)
-- 等等
+- Flutter 生态中的相关开源依赖
 
-<br/>
-<br/>
-<br/>
-
-## Star History
-
-<a href="https://www.star-history.com/#bggRGjQaUbCoE/PiliPlus&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=bggRGjQaUbCoE/PiliPlus&type=Date" />
- </picture>
-</a>
+感谢原作者和社区的开源工作。PiliStudy 是在这些工作基础上的定向学习版改造。
