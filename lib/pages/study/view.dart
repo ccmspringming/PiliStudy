@@ -36,12 +36,18 @@ class _StudyPageState extends State<StudyPage>
   bool _loading = false;
   bool _loadingMore = false;
   bool _hasMore = true;
+  bool _autoFillScheduled = false;
   int _emptyPageCount = 0;
+  int _autoFillCount = 0;
   String? _error;
   List<SearchVideoItemModel> _items = const [];
 
   static const Duration _cacheTtl = Duration(minutes: 10);
   static const Duration _tabDebounce = Duration(milliseconds: 350);
+  static const int _minBufferedItems = 12;
+  static const int _maxAutoFillPages = 3;
+  static const double _gridPadding = 8;
+  static const double _gridSpacing = 8;
 
   static const List<_StudyGrade> _grades = [
     _StudyGrade('启蒙教育', '启蒙教育'),
@@ -171,6 +177,7 @@ class _StudyPageState extends State<StudyPage>
       _currentPage = cached.page;
       _hasMore = cached.hasMore;
       _emptyPageCount = cached.emptyPageCount;
+      _autoFillCount = 0;
       _error = null;
       _loading = false;
       _loadingMore = false;
@@ -208,6 +215,7 @@ class _StudyPageState extends State<StudyPage>
         _hasMore = true;
         _currentPage = 1;
         _emptyPageCount = 0;
+        _autoFillCount = 0;
       } else {
         _loadingMore = true;
       }
@@ -244,6 +252,7 @@ class _StudyPageState extends State<StudyPage>
             _loading = false;
             _loadingMore = false;
           });
+          _scheduleEnsureScrollableContent();
         case Error(:final errMsg):
           setState(() {
             if (replace) _items = const [];
@@ -273,6 +282,26 @@ class _StudyPageState extends State<StudyPage>
     }
   }
 
+  void _scheduleEnsureScrollableContent() {
+    if (_autoFillScheduled) return;
+    final scheduledRequestId = _requestId;
+    _autoFillScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoFillScheduled = false;
+      if (!mounted || scheduledRequestId != _requestId) return;
+      if (!_scrollController.hasClients) return;
+      if (_loading || _loadingMore || !_hasMore) return;
+      if (_autoFillCount >= _maxAutoFillPages) return;
+      final position = _scrollController.position;
+      final contentTooShort = position.maxScrollExtent < position.viewportDimension * 0.35;
+      final notEnoughItems = _items.length < _minBufferedItems;
+      if (contentTooShort || notEnoughItems) {
+        _autoFillCount += 1;
+        _loadMore();
+      }
+    });
+  }
+
   List<SearchVideoItemModel> _mergeItems(
     List<SearchVideoItemModel> current,
     List<SearchVideoItemModel> next,
@@ -292,9 +321,7 @@ class _StudyPageState extends State<StudyPage>
     return source.where((item) {
       final text = '${item.title} ${item.desc ?? ''} ${item.owner.name ?? ''}';
       if (_blockedWords.any(text.contains)) return false;
-      if (_isAllSubject) {
-        return _studySignals.any(text.contains);
-      }
+      if (_isAllSubject) return true;
       if (grade != '启蒙教育' && !text.contains(grade)) return false;
       return true;
     }).toList();
@@ -408,21 +435,35 @@ class _StudyPageState extends State<StudyPage>
         ],
       );
     }
-    return OrientationBuilder(
-      builder: (context, orientation) {
-        final isLandscape = orientation == Orientation.landscape;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final isLandscape = width > height;
+        final columns = _gridColumnCount(width, isLandscape);
+        final gridWidth = width - _gridPadding * 2;
+        final cardWidth = (gridWidth - (columns - 1) * _gridSpacing) / columns;
+        final textScale = MediaQuery.textScalerOf(
+          context,
+        ).scale(1.0).clamp(1.0, 1.35).toDouble();
+        final cardHeight = _cardMainAxisExtent(cardWidth, textScale);
         return CustomScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(8, 8, 8, isLandscape ? 16 : 24),
+              padding: EdgeInsets.fromLTRB(
+                _gridPadding,
+                _gridPadding,
+                _gridPadding,
+                isLandscape ? 16 : 24,
+              ),
               sliver: SliverGrid.builder(
-                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: isLandscape ? 240 : 220,
-                  childAspectRatio: isLandscape ? 1.05 : 0.92,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisExtent: cardHeight,
+                  crossAxisSpacing: _gridSpacing,
+                  mainAxisSpacing: _gridSpacing,
                 ),
                 itemCount: _items.length,
                 itemBuilder: (context, index) => RepaintBoundary(
@@ -435,6 +476,21 @@ class _StudyPageState extends State<StudyPage>
         );
       },
     );
+  }
+
+  int _gridColumnCount(double width, bool isLandscape) {
+    if (width >= 900) return 4;
+    if (width >= 620) return 3;
+    return isLandscape && width >= 520 ? 3 : 2;
+  }
+
+  double _cardMainAxisExtent(double cardWidth, double textScale) {
+    final coverHeight = cardWidth / Style.aspectRatio;
+    // Bottom content includes padding, two title lines, stats, author and gaps.
+    // Keep a conservative reserve so phones, foldables and larger text scales
+    // do not force RenderFlex overflow inside the card.
+    final contentHeight = 112 * textScale + 24;
+    return coverHeight + contentHeight;
   }
 
   Widget _loadMoreFooter(ThemeData theme) {
@@ -528,49 +584,62 @@ class _StudyVideoCard extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(height: 1.35),
-                    ),
-                    const SizedBox(height: 6),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        children: [
-                          StatWidget(type: .play, value: item.stat.view),
-                          const SizedBox(width: 8),
-                          StatWidget(type: .danmaku, value: item.stat.danmu),
-                          const SizedBox(width: 8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableHeight = constraints.maxHeight;
+                  final showStats = availableHeight >= 58;
+                  final showOwner = availableHeight >= 78;
+                  final titleLines = availableHeight >= 48 ? 2 : 1;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: titleLines,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(height: 1.25),
+                        ),
+                        if (showStats) ...[
+                          const SizedBox(height: 5),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              children: [
+                                StatWidget(type: .play, value: item.stat.view),
+                                const SizedBox(width: 8),
+                                StatWidget(type: .danmaku, value: item.stat.danmu),
+                                const SizedBox(width: 8),
+                                Text(
+                                  DateFormatUtils.dateFormat(item.pubdate ?? 0),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (showOwner) ...[
+                          const SizedBox(height: 3),
                           Text(
-                            DateFormatUtils.dateFormat(item.pubdate ?? 0),
+                            item.owner.name ?? '未知 UP',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               color: theme.colorScheme.outline,
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.owner.name ?? '未知 UP',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ],
