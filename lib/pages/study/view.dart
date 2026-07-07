@@ -527,9 +527,9 @@ class _StudyPageState extends State<StudyPage>
   double _cardMainAxisExtent(double cardWidth, double textScale) {
     final coverHeight = cardWidth / Style.aspectRatio;
     // Bottom content includes padding, two title lines, stats, author and gaps.
-    // Keep a conservative reserve so phones, foldables and larger text scales
-    // do not force RenderFlex overflow inside the card.
-    final contentHeight = 112 * textScale + 24;
+    // v0.4 reserved too much space to avoid overflow; on foldables that became
+    // visible dead air. Keep a compact but safe reserve instead.
+    final contentHeight = 84 * textScale + 10;
     return coverHeight + contentHeight;
   }
 
@@ -660,11 +660,11 @@ class _StudyVideoCard extends StatelessWidget {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final availableHeight = constraints.maxHeight;
-                  final showStats = availableHeight >= 58;
-                  final showOwner = availableHeight >= 78;
-                  final titleLines = availableHeight >= 48 ? 2 : 1;
+                  final showStats = availableHeight >= 50;
+                  final showOwner = availableHeight >= 70;
+                  final titleLines = availableHeight >= 42 ? 2 : 1;
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
+                    padding: const EdgeInsets.fromLTRB(7, 5, 7, 6),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +676,7 @@ class _StudyVideoCard extends StatelessWidget {
                           style: const TextStyle(height: 1.25),
                         ),
                         if (showStats) ...[
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 4),
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
