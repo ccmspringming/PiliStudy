@@ -8,15 +8,17 @@ class StudyParentSettingsPage extends StatefulWidget {
 
   static Future<bool> open(BuildContext context) async {
     if (!StudySafetyPrefs.hasParentPin) {
-      final created = await Get.dialog<bool>(
-        const _ParentPinDialog(createMode: true),
+      final created = await showDialog<bool>(
+        context: context,
         barrierDismissible: false,
+        builder: (_) => const _ParentPinDialog(createMode: true),
       );
       if (created != true) return false;
     } else {
-      final verified = await Get.dialog<bool>(
-        const _ParentPinDialog(createMode: false),
+      final verified = await showDialog<bool>(
+        context: context,
         barrierDismissible: false,
+        builder: (_) => const _ParentPinDialog(createMode: false),
       );
       if (verified != true) return false;
     }
@@ -74,13 +76,17 @@ class _StudyParentSettingsPageState extends State<StudyParentSettingsPage> {
       largeScreenMode: _largeScreenMode,
     );
     SmartDialog.showToast('家长设置已保存');
-    Get.back(result: true);
+    Navigator.of(context).pop(true);
   }
 
   Future<void> _changePin() async {
-    final changed = await Get.dialog<bool>(
-      const _ParentPinDialog(createMode: true, title: '修改家长 PIN'),
+    final changed = await showDialog<bool>(
+      context: context,
       barrierDismissible: false,
+      builder: (_) => const _ParentPinDialog(
+        createMode: true,
+        title: '修改家长 PIN',
+      ),
     );
     if (changed == true) SmartDialog.showToast('家长 PIN 已修改');
   }
@@ -252,14 +258,14 @@ class _ParentPinDialogState extends State<_ParentPinDialog> {
         return;
       }
       await StudySafetyPrefs.setParentPin(pin);
-      Get.back(result: true);
+      Navigator.of(context).pop(true);
       return;
     }
     if (!StudySafetyPrefs.verifyParentPin(pin)) {
       setState(() => _error = 'PIN 不正确');
       return;
     }
-    Get.back(result: true);
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -297,7 +303,7 @@ class _ParentPinDialogState extends State<_ParentPinDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Get.back(result: false),
+          onPressed: () => Navigator.of(context).pop(false),
           child: const Text('取消'),
         ),
         FilledButton(
