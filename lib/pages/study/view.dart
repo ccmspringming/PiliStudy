@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/badge.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -25,11 +27,16 @@ class StudyPage extends StatefulWidget {
 class _StudyPageState extends State<StudyPage>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final TabController _gradeController;
+  final Map<String, _StudyCacheEntry> _cache = {};
+  Timer? _debounce;
   int _subjectIndex = 0;
   int _requestId = 0;
   bool _loading = false;
   String? _error;
   List<SearchVideoItemModel> _items = const [];
+
+  static const Duration _cacheTtl = Duration(minutes: 10);
+  static const Duration _tabDebounce = Duration(milliseconds: 350);
 
   static const List<_StudyGrade> _grades = [
     _StudyGrade('启蒙教育', '启蒙教育'),
@@ -70,6 +77,38 @@ class _StudyPageState extends State<StudyPage>
     '恋爱',
     '八卦',
     '解说',
+    '手游',
+    '氪金',
+    '带货',
+    '擦边',
+  ];
+
+  static const List<String> _studySignals = [
+    '学习',
+    '教育',
+    '课程',
+    '知识',
+    '科普',
+    '科学',
+    '探索',
+    '实验',
+    '纪录片',
+    '自然',
+    '地理',
+    '历史',
+    '文化',
+    '数学',
+    '语文',
+    '英语',
+    '阅读',
+    '绘本',
+    '编程',
+    '思维',
+    '课堂',
+    '小学',
+    '少儿',
+    '儿童',
+    '正能量',
   ];
 
   @override
@@ -81,7 +120,7 @@ class _StudyPageState extends State<StudyPage>
     _gradeController = TabController(length: _grades.length, vsync: this)
       ..addListener(() {
         if (!_gradeController.indexIsChanging) {
-          _load();
+          _scheduleLoad();
         }
       });
     _load();
@@ -89,20 +128,48 @@ class _StudyPageState extends State<StudyPage>
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _gradeController.dispose();
     super.dispose();
   }
 
+  bool get _isAllSubject => _subjectIndex == 0;
+
+  String get _cacheKey => '${_gradeController.index}:$_subjectIndex';
+
   String get _keyword {
     final grade = _grades[_gradeController.index].keyword;
     final subject = _subjects[_subjectIndex].keyword;
-    if (subject.isEmpty) {
-      return '$grade 小学 课程 同步教材';
+    if (_isAllSubject) {
+      if (grade == '启蒙教育') {
+        return '少儿 学习 科普 科学探索 自然 纪录片 绘本 正能量';
+      }
+      return '$grade 学习 科普 科学探索 自然 历史 地理 纪录片 正能量';
     }
     return '$grade $subject 小学 课程 同步教材';
   }
 
-  Future<void> _load() async {
+  void _scheduleLoad() {
+    _debounce?.cancel();
+    _debounce = Timer(_tabDebounce, () => _load());
+  }
+
+  bool _useCachedResult({bool force = false}) {
+    if (force) return false;
+    final cached = _cache[_cacheKey];
+    if (cached == null) return false;
+    if (DateTime.now().difference(cached.createdAt) > _cacheTtl) return false;
+    setState(() {
+      _items = cached.items;
+      _error = null;
+      _loading = false;
+    });
+    return true;
+  }
+
+  Future<void> _load({bool force = false}) async {
+    _debounce?.cancel();
+    if (_useCachedResult(force: force)) return;
     final int current = ++_requestId;
     setState(() {
       _loading = true;
@@ -114,14 +181,16 @@ class _StudyPageState extends State<StudyPage>
         searchType: SearchType.video,
         keyword: _keyword,
         page: 1,
-        order: 'totalrank',
+        order: _isAllSubject ? 'pubdate' : 'totalrank',
         onSuccess: (String _) {},
       );
       if (!mounted || current != _requestId) return;
       switch (res) {
         case Success<SearchVideoData>(:final response):
+          final items = _filter(response.list ?? const []);
+          _cache[_cacheKey] = _StudyCacheEntry(items, DateTime.now());
           setState(() {
-            _items = _filter(response.list ?? const []);
+            _items = items;
             _loading = false;
           });
         case Error(:final errMsg):
@@ -152,15 +221,18 @@ class _StudyPageState extends State<StudyPage>
     return source.where((item) {
       final text = '${item.title} ${item.desc ?? ''} ${item.owner.name ?? ''}';
       if (_blockedWords.any(text.contains)) return false;
+      if (_isAllSubject) {
+        return _studySignals.any(text.contains);
+      }
       if (grade != '启蒙教育' && !text.contains(grade)) return false;
       return true;
-    }).take(30).toList();
+    }).take(36).toList();
   }
 
   void _selectSubject(int index) {
     if (_subjectIndex == index) return;
     setState(() => _subjectIndex = index);
-    _load();
+    _scheduleLoad();
   }
 
   @override
@@ -174,7 +246,7 @@ class _StudyPageState extends State<StudyPage>
         actions: [
           IconButton(
             tooltip: '刷新学习内容',
-            onPressed: _load,
+            onPressed: () => _load(force: true),
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
@@ -190,16 +262,19 @@ class _StudyPageState extends State<StudyPage>
           tabs: _grades.map((e) => Tab(text: e.label)).toList(),
         ),
       ),
-      body: Column(
-        children: [
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
           _subjectBar(theme),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _load,
+              onRefresh: () => _load(force: true),
               child: _body(theme),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -244,7 +319,7 @@ class _StudyPageState extends State<StudyPage>
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: _load,
+            onPressed: () => _load(force: true),
             icon: const Icon(Icons.refresh),
             label: const Text('重新加载'),
           ),
@@ -270,12 +345,14 @@ class _StudyPageState extends State<StudyPage>
           sliver: SliverGrid.builder(
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 360,
-              mainAxisExtent: 245,
+              mainAxisExtent: 310,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
             itemCount: _items.length,
-            itemBuilder: (context, index) => _StudyVideoCard(item: _items[index]),
+            itemBuilder: (context, index) => RepaintBoundary(
+              child: _StudyVideoCard(item: _items[index]),
+            ),
           ),
         ),
       ],
@@ -364,20 +441,24 @@ class _StudyVideoCard extends StatelessWidget {
                       style: const TextStyle(height: 1.35),
                     ),
                     const Spacer(),
-                    Row(
-                      children: [
-                        StatWidget(type: .play, value: item.stat.view),
-                        const SizedBox(width: 8),
-                        StatWidget(type: .danmaku, value: item.stat.danmu),
-                        const Spacer(),
-                        Text(
-                          DateFormatUtils.dateFormat(item.pubdate ?? 0),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.outline,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: [
+                          StatWidget(type: .play, value: item.stat.view),
+                          const SizedBox(width: 8),
+                          StatWidget(type: .danmaku, value: item.stat.danmu),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormatUtils.dateFormat(item.pubdate ?? 0),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.outline,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -398,6 +479,13 @@ class _StudyVideoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _StudyCacheEntry {
+  final List<SearchVideoItemModel> items;
+  final DateTime createdAt;
+
+  const _StudyCacheEntry(this.items, this.createdAt);
 }
 
 class _StudyGrade {
