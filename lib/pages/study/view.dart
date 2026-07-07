@@ -28,10 +28,15 @@ class _StudyPageState extends State<StudyPage>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final TabController _gradeController;
   final Map<String, _StudyCacheEntry> _cache = {};
+  final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
   int _subjectIndex = 0;
   int _requestId = 0;
+  int _currentPage = 1;
   bool _loading = false;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _emptyPageCount = 0;
   String? _error;
   List<SearchVideoItemModel> _items = const [];
 
@@ -123,12 +128,14 @@ class _StudyPageState extends State<StudyPage>
           _scheduleLoad();
         }
       });
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _scrollController.dispose();
     _gradeController.dispose();
     super.dispose();
   }
@@ -161,59 +168,123 @@ class _StudyPageState extends State<StudyPage>
     if (DateTime.now().difference(cached.createdAt) > _cacheTtl) return false;
     setState(() {
       _items = cached.items;
+      _currentPage = cached.page;
+      _hasMore = cached.hasMore;
+      _emptyPageCount = cached.emptyPageCount;
       _error = null;
       _loading = false;
+      _loadingMore = false;
     });
     return true;
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients || _loading || _loadingMore || !_hasMore) {
+      return;
+    }
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 480) {
+      _loadMore();
+    }
   }
 
   Future<void> _load({bool force = false}) async {
     _debounce?.cancel();
     if (_useCachedResult(force: force)) return;
+    await _fetchPage(page: 1, replace: true);
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || !_hasMore) return;
+    await _fetchPage(page: _currentPage + 1, replace: false);
+  }
+
+  Future<void> _fetchPage({required int page, required bool replace}) async {
     final int current = ++_requestId;
     setState(() {
-      _loading = true;
-      _error = null;
+      if (replace) {
+        _loading = true;
+        _error = null;
+        _hasMore = true;
+        _currentPage = 1;
+        _emptyPageCount = 0;
+      } else {
+        _loadingMore = true;
+      }
     });
 
     try {
       final res = await SearchHttp.searchByType<SearchVideoData>(
         searchType: SearchType.video,
         keyword: _keyword,
-        page: 1,
+        page: page,
         order: _isAllSubject ? 'pubdate' : 'totalrank',
         onSuccess: (String _) {},
       );
       if (!mounted || current != _requestId) return;
       switch (res) {
         case Success<SearchVideoData>(:final response):
-          final items = _filter(response.list ?? const []);
-          _cache[_cacheKey] = _StudyCacheEntry(items, DateTime.now());
+          final rawItems = response.list ?? const <SearchVideoItemModel>[];
+          final filtered = _filter(rawItems);
+          final merged = replace ? filtered : _mergeItems(_items, filtered);
+          final emptyPageCount = filtered.isEmpty ? _emptyPageCount + 1 : 0;
+          final hasMore = rawItems.isNotEmpty && emptyPageCount < 2;
+          _cache[_cacheKey] = _StudyCacheEntry(
+            merged,
+            DateTime.now(),
+            page,
+            hasMore,
+            emptyPageCount,
+          );
           setState(() {
-            _items = items;
+            _items = merged;
+            _currentPage = page;
+            _hasMore = hasMore;
+            _emptyPageCount = emptyPageCount;
             _loading = false;
+            _loadingMore = false;
           });
         case Error(:final errMsg):
           setState(() {
-            _items = const [];
+            if (replace) _items = const [];
             _error = errMsg ?? '加载失败';
             _loading = false;
+            _loadingMore = false;
+            if (!replace) _hasMore = false;
           });
         default:
           setState(() {
-            _items = const [];
+            if (replace) _items = const [];
             _error = '加载失败';
             _loading = false;
+            _loadingMore = false;
+            if (!replace) _hasMore = false;
           });
       }
     } catch (e) {
       if (!mounted || current != _requestId) return;
       setState(() {
-        _items = const [];
+        if (replace) _items = const [];
         _error = e.toString();
         _loading = false;
+        _loadingMore = false;
+        if (!replace) _hasMore = false;
       });
     }
+  }
+
+  List<SearchVideoItemModel> _mergeItems(
+    List<SearchVideoItemModel> current,
+    List<SearchVideoItemModel> next,
+  ) {
+    final seen = <String>{
+      for (final item in current) item.bvid?.toString() ?? item.aid.toString(),
+    };
+    return [
+      ...current,
+      for (final item in next)
+        if (seen.add(item.bvid?.toString() ?? item.aid.toString())) item,
+    ];
   }
 
   List<SearchVideoItemModel> _filter(List<SearchVideoItemModel> source) {
@@ -226,7 +297,7 @@ class _StudyPageState extends State<StudyPage>
       }
       if (grade != '启蒙教育' && !text.contains(grade)) return false;
       return true;
-    }).take(36).toList();
+    }).toList();
   }
 
   void _selectSubject(int index) {
@@ -266,13 +337,13 @@ class _StudyPageState extends State<StudyPage>
         top: false,
         child: Column(
           children: [
-          _subjectBar(theme),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => _load(force: true),
-              child: _body(theme),
+            _subjectBar(theme),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => _load(force: true),
+                child: _body(theme),
+              ),
             ),
-          ),
           ],
         ),
       ),
@@ -337,26 +408,54 @@ class _StudyPageState extends State<StudyPage>
         ],
       );
     }
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-          sliver: SliverGrid.builder(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 360,
-              mainAxisExtent: 310,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+    return OrientationBuilder(
+      builder: (context, orientation) {
+        final isLandscape = orientation == Orientation.landscape;
+        return CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(8, 8, 8, isLandscape ? 16 : 24),
+              sliver: SliverGrid.builder(
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: isLandscape ? 240 : 220,
+                  childAspectRatio: isLandscape ? 1.05 : 0.92,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _items.length,
+                itemBuilder: (context, index) => RepaintBoundary(
+                  child: _StudyVideoCard(item: _items[index]),
+                ),
+              ),
             ),
-            itemCount: _items.length,
-            itemBuilder: (context, index) => RepaintBoundary(
-              child: _StudyVideoCard(item: _items[index]),
-            ),
+            SliverToBoxAdapter(child: _loadMoreFooter(theme)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _loadMoreFooter(ThemeData theme) {
+    if (_loadingMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!_hasMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Center(
+          child: Text(
+            '已经到底了',
+            style: TextStyle(color: theme.colorScheme.outline),
           ),
         ),
-      ],
-    );
+      );
+    }
+    return const SizedBox(height: 24);
   }
 }
 
@@ -440,7 +539,7 @@ class _StudyVideoCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(height: 1.35),
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 6),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
@@ -484,8 +583,17 @@ class _StudyVideoCard extends StatelessWidget {
 class _StudyCacheEntry {
   final List<SearchVideoItemModel> items;
   final DateTime createdAt;
+  final int page;
+  final bool hasMore;
+  final int emptyPageCount;
 
-  const _StudyCacheEntry(this.items, this.createdAt);
+  const _StudyCacheEntry(
+    this.items,
+    this.createdAt,
+    this.page,
+    this.hasMore,
+    this.emptyPageCount,
+  );
 }
 
 class _StudyGrade {
