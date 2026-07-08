@@ -192,12 +192,18 @@ class _StudyPageState extends State<StudyPage>
   String get _keyword {
     final grade = _grades[_gradeController.index].keyword;
     final subject = _subjects[_subjectIndex].keyword;
+    final custom = StudySafetyPrefs.customKeywords;
+    final useCustom = StudySafetyPrefs.sourceMode != StudyContentSourceMode.builtin && custom.isNotEmpty;
     if (_isAllSubject) {
       final theme = _currentAllTheme.keyword;
       if (grade == '启蒙教育') {
         return '启蒙教育 $theme';
       }
       return '$grade $theme';
+    }
+    if (useCustom) {
+      // Use first custom keyword as the priority search term on subject tabs
+      return '$grade ${custom.first}';
     }
     return '$grade $subject 小学 课程 同步教材';
   }
@@ -264,6 +270,21 @@ class _StudyPageState extends State<StudyPage>
         _emptyPageCount = 0;
         _autoFillCount = 0;
         _error = null;
+        _loading = false;
+        _loadingMore = false;
+      });
+      return;
+    }
+    if (!_isAllSubject &&
+        StudySafetyPrefs.sourceMode != StudyContentSourceMode.builtin &&
+        StudySafetyPrefs.customKeywords.isEmpty) {
+      setState(() {
+        _items = const [];
+        _currentPage = 1;
+        _hasMore = false;
+        _emptyPageCount = 0;
+        _autoFillCount = 0;
+        _error = '自定义模式下未设置关键词，请进入家长设置添加关键词';
         _loading = false;
         _loadingMore = false;
       });

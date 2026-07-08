@@ -1,7 +1,6 @@
 import 'package:PiliPlus/pages/study/study_safety.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
 
 class StudyParentSettingsPage extends StatefulWidget {
   const StudyParentSettingsPage({super.key});
@@ -22,7 +21,12 @@ class StudyParentSettingsPage extends StatefulWidget {
       );
       if (verified != true) return false;
     }
-    final changed = await Get.to<bool>(() => const StudyParentSettingsPage());
+    // Use Navigator.push instead of Get.to to avoid route transition lag
+    await Future.microtask(() {});
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const StudyParentSettingsPage()),
+    );
     return changed == true;
   }
 
