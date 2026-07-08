@@ -70,9 +70,14 @@ class _StudyParentSettingsPageState extends State<StudyParentSettingsPage> {
   }
 
   Future<void> _save() async {
+    final customText = _customKeywordsController.text;
+    final effectiveSourceMode = StudySafetyPrefs.parseWords(customText).isNotEmpty &&
+            _sourceMode == StudyContentSourceMode.builtin
+        ? StudyContentSourceMode.mixed
+        : _sourceMode;
     await StudySafetyPrefs.saveSettings(
-      sourceMode: _sourceMode,
-      customKeywordsRaw: _customKeywordsController.text,
+      sourceMode: effectiveSourceMode,
+      customKeywordsRaw: customText,
       whitelistWordsRaw: _whitelistController.text,
       extraBlockWordsRaw: _extraBlockController.text,
       hideComments: _hideComments,

@@ -172,9 +172,21 @@ class _StudyPageState extends State<StudyPage>
       .map((keyword) => _StudyTheme(keyword, keyword))
       .toList(growable: false);
 
+  StudyContentSourceMode get _effectiveSourceMode {
+    if (StudySafetyPrefs.customKeywords.isEmpty) {
+      return StudyContentSourceMode.builtin;
+    }
+    if (StudySafetyPrefs.sourceMode == StudyContentSourceMode.builtin) {
+      // 家长已经填写自定义关键词时，自动让关键词参与“全部”页轮换，
+      // 避免“填了关键词但忘记切内容源模式”导致看起来不生效。
+      return StudyContentSourceMode.mixed;
+    }
+    return StudySafetyPrefs.sourceMode;
+  }
+
   List<_StudyTheme> get _activeAllThemes {
     final custom = _customThemes;
-    return switch (StudySafetyPrefs.sourceMode) {
+    return switch (_effectiveSourceMode) {
       StudyContentSourceMode.builtin => _allThemes,
       StudyContentSourceMode.custom => custom,
       StudyContentSourceMode.mixed => [..._allThemes, ...custom],
@@ -193,7 +205,7 @@ class _StudyPageState extends State<StudyPage>
     final grade = _grades[_gradeController.index].keyword;
     final subject = _subjects[_subjectIndex].keyword;
     final custom = StudySafetyPrefs.customKeywords;
-    final useCustom = StudySafetyPrefs.sourceMode != StudyContentSourceMode.builtin && custom.isNotEmpty;
+    final useCustom = custom.isNotEmpty;
     if (_isAllSubject) {
       final theme = _currentAllTheme.keyword;
       if (grade == '启蒙教育') {
@@ -634,7 +646,7 @@ class _StudyPageState extends State<StudyPage>
           Expanded(
             child: Text(
               _hasActiveAllSource
-                  ? '当前主题：${_currentAllTheme.label}｜${StudySafetyPrefs.sourceMode.label}｜下拉换一批'
+                  ? '当前主题：${_currentAllTheme.label}｜${_effectiveSourceMode.label}｜下拉换一批'
                   : '当前未配置自定义内容源｜请进入家长设置',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
