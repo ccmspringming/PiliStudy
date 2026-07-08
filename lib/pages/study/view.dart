@@ -189,7 +189,7 @@ class _StudyPageState extends State<StudyPage>
     return switch (_effectiveSourceMode) {
       StudyContentSourceMode.builtin => _allThemes,
       StudyContentSourceMode.custom => custom,
-      StudyContentSourceMode.mixed => [..._allThemes, ...custom],
+      StudyContentSourceMode.mixed => [...custom, ..._allThemes],
     };
   }
 
